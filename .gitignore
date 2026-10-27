@@ -1,0 +1,30 @@
+# Agent workspace, research and temporary evidence
+/.scratch/
+/tmp/
+/docs/research/
+/docs/adr/
+/docs/github.md
+/GLOSSARY.md
+/.agents/
+/.codex/
+/.aws/
+/AGENTS.md
+/CLAUDE.md
+
+# Dependencies and local output (dist/ contains application source)
+node_modules/
+coverage/
+*.log
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

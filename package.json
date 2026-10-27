@@ -1,0 +1,12 @@
+{
+  "name": "healthy-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "本机运行的个人饮食与每日能量参考记录工具",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=20" }
+}

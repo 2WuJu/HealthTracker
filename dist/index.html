@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#244d3e">
+  <meta name="description" content="记录每餐食物与热量，与中国 DRIs 每日能量人群参考值对照。数据保存在当前浏览器。">
+  <title>知食 · 个人饮食记录</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body>
+  <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 4h6a3 3 0 0 1 3 3v14a4 4 0 0 0-4-2H4zM13 7a3 3 0 0 1 3-3h4v15h-3a4 4 0 0 0-4 2"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v5m10-5v5M3 11h18m-13 4h2m4 0h2"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m14 5 5 5M4 20l5-1L20 8a3 3 0 0 0-4-4L5 15z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/></symbol>
+    <symbol id="i-sunrise" viewBox="0 0 24 24"><path d="M2 18h20M5 22h14M7 18a5 5 0 0 1 10 0M12 3v5m-8 2 3 3m13-3-3 3M12 4l-2 2m2-2 2 2"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 15.5A9 9 0 0 1 8.5 4 9 9 0 1 0 20 15.5Z"/></symbol>
+    <symbol id="i-cup" viewBox="0 0 24 24"><path d="M4 8h13v7a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6zM17 9h2a3 3 0 0 1 0 6h-2M8 2v2m5-2v2"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20 3C9 2 3 6 4 13c1 6 9 8 13 3 3-4 3-9 3-13ZM4 21l10-11"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  </svg>
+
+  <a class="skip-link" href="#journal">跳到饮食记录</a>
+  <aside class="sidebar" aria-label="主导航">
+    <a href="/" class="brand" aria-label="知食首页"><img src="/icon.svg" width="42" height="42" alt=""><span><strong>知食</strong><small>个人饮食记录</small></span></a>
+    <div class="sidebar-label">我的日常</div>
+    <nav class="navigation">
+      <button class="nav-item active" type="button" data-action="journal"><svg class="icon"><use href="#i-book"/></svg><span>饮食日记</span></button>
+      <button class="nav-item" type="button" data-action="history"><svg class="icon"><use href="#i-calendar"/></svg><span>历史记录</span></button>
+      <button class="nav-item" type="button" data-action="profile"><svg class="icon"><use href="#i-user"/></svg><span>个人信息</span></button>
+    </nav>
+    <div class="sidebar-bottom"><svg class="icon"><use href="#i-leaf"/></svg><p>一餐一笔<br>让日常有迹可循</p><small>数据仅保存在当前浏览器</small></div>
+  </aside>
+
+  <main class="workspace" id="journal" tabindex="-1">
+    <div class="page-topline"><span>我的饮食日记 <span class="breadcrumb">/ 每日记录</span></span><span class="local-badge"><span class="status-dot"></span>本机记录</span></div>
+    <header class="page-header"><div><p class="eyebrow">A LITTLE EVERY DAY</p><h1>记录每一餐，了解每一天。</h1><p class="subtitle">从今天吃了什么开始，慢慢积累自己的饮食日记。</p></div><button class="button primary" type="button" data-action="add" data-write><svg class="icon"><use href="#i-plus"/></svg>记一笔</button></header>
+    <noscript><p class="error-banner">此工具需要启用 JavaScript 才能记录和汇总饮食。</p></noscript>
+    <p id="page-error" class="error-banner" role="alert" hidden></p>
+
+    <section class="date-section" aria-label="选择记录日期"><div class="date-heading"><svg class="icon"><use href="#i-calendar"/></svg><h2 id="date-title">每日记录</h2><span id="day-badge" class="small-tag">今天</span></div><div class="date-controls"><button class="icon-button" id="previous-day" type="button" aria-label="前一天"><svg class="icon"><use href="#i-left"/></svg></button><label class="sr-only" for="selected-date">记录日期</label><input type="date" id="selected-date" min="0001-01-01"><button class="icon-button" id="next-day" type="button" aria-label="后一天"><svg class="icon"><use href="#i-right"/></svg></button><button class="text-button" id="back-today" type="button" hidden>回到今天</button></div></section>
+
+    <section class="metrics" aria-label="每日热量汇总" aria-live="polite" aria-atomic="true">
+      <article class="metric-card intake-card"><div class="metric-label">已记录摄入量 <svg class="icon"><use href="#i-book"/></svg></div><div class="metric-number"><strong id="intake-value">—</strong><span>千卡</span></div><div class="intake-bottom"><span id="intake-note">还没有食物记录</span><svg class="bowl-decoration" viewBox="0 0 90 65" aria-hidden="true"><path d="M10 28h70c-2 23-15 31-35 31S12 51 10 28Z"/><path d="M46 22c-14 0-21-8-20-19 15 0 24 8 20 19Zm3-2C48 8 57 2 72 3c-1 12-8 18-23 17Z"/></svg></div><progress id="intake-progress" value="0" max="1" aria-label="已记录摄入量与参考值的数值对照" hidden></progress></article>
+      <article class="metric-card"><div class="metric-label">每日能量参考值 <svg class="icon"><use href="#i-leaf"/></svg></div><div class="metric-number"><strong id="reference-value">—</strong><span>千卡</span></div><p id="reference-note" class="metric-note">填写个人信息后匹配</p><span id="reference-source" class="metric-footnote">中国 DRIs 2023 · 人群参考</span></article>
+      <article class="metric-card"><div class="metric-label">与参考值的差额 <svg class="icon"><use href="#i-arrow"/></svg></div><div class="metric-number"><strong id="difference-value">—</strong><span>千卡</span></div><p id="difference-note" class="metric-note">记录后显示数值比较</p><span class="metric-footnote">已记录摄入量 − 参考值</span></article>
+    </section>
+    <p class="summary-caption"><svg class="icon"><use href="#i-info"/></svg>数值仅代表已记录的食物，不表示全天记录完整，也不作为饮食健康评分。</p>
+
+    <div class="content-grid">
+      <div class="journal-column">
+        <div class="section-heading"><h2>这一天，吃了什么</h2><span id="food-count">0 条食物记录</span></div>
+        <div id="meal-list" class="meal-list"></div>
+        <section class="week-section" aria-label="日期速览"><div class="section-heading"><h2 id="week-title">近 7 天</h2><button class="text-button" type="button" data-action="history">全部记录 <svg class="icon"><use href="#i-right"/></svg></button></div><div class="week-strip" id="week-strip"></div></section>
+      </div>
+      <aside class="context-column" aria-label="个人信息与计算依据">
+        <section class="profile-card" id="profile-card"><div class="card-heading"><div class="profile-icon"><svg class="icon"><use href="#i-user"/></svg></div><div><h2>我的个人信息</h2><p>为日常记录提供一个参考</p></div><span id="profile-status" class="small-tag">未设置</span></div>
+          <form id="profile-form" novalidate>
+            <div class="form-row"><label for="profile-age">年龄 <span>周岁</span></label><input id="profile-age" name="age" type="number" min="18" step="1" placeholder="填写年龄" required autocomplete="off" inputmode="numeric"></div>
+            <div class="form-row"><label for="profile-sex">性别分组</label><select id="profile-sex" name="sex" required><option value="">请选择</option><option value="male">男性</option><option value="female">女性</option></select></div>
+            <div class="form-row"><label for="profile-activity">日常活动水平</label><select id="profile-activity" name="activity" required><option value="">请选择</option><option value="low">低活动</option><option value="moderate">中活动</option><option value="high">高活动</option></select><p class="field-help">结合全天工作、通勤和休闲活动自选，不等同于单次运动强度。</p></div>
+            <div class="reference-preview"><span>匹配参考值 <small id="preview-group"></small></span><strong id="profile-preview">— <small>千卡 / 天</small></strong></div>
+            <p id="profile-error" class="form-error" role="alert" hidden></p>
+            <button class="button primary full-width" id="profile-save" type="submit" data-write>保存个人信息</button>
+            <p class="profile-effective-note" id="profile-effective-note">保存后从今天起生效；年龄需手动更新。</p>
+          </form>
+        </section>
+        <details class="basis-card"><summary><span><svg class="icon"><use href="#i-leaf"/></svg>参考值从哪里来？</span><svg class="icon disclosure-arrow"><use href="#i-right"/></svg></summary><div class="basis-content"><p>依据《中国居民膳食营养素参考摄入量（2023 版）》，按年龄、性别和活动档位匹配<strong>人群参考值</strong>，并非个人精确热量需要量。</p><p>适用于 18 岁及以上一般成年人。孕哺及其他需要专门营养方案的情况不适用普通成人表。</p><p>18–49 岁原表的 MJ 已换算为千卡，按最近 50 千卡表示；不额外乘活动系数。原表没有提供的组合保持为空。</p><div class="reference-table-wrap"><table class="reference-table"><caption>每日能量参考值（千卡）</caption><thead><tr><th scope="col">年龄</th><th scope="col">男：低 / 中 / 高</th><th scope="col">女：低 / 中 / 高</th></tr></thead><tbody id="reference-table-body"></tbody></table></div><div class="source-links"><a href="https://www.cnsoc.org/drpostand/" target="_blank" rel="noopener noreferrer">中国营养学会 · 原始参考表 ↗</a><a href="https://www.chp.gov.hk/files/pdf/exn_nutp_058b.pdf" target="_blank" rel="noopener noreferrer">香港卫生署 · 50 岁以上转引表 ↗</a></div><p class="basis-note">修改个人信息只更新当天及以后的参考值，过去的比较依据保留。</p></div></details>
+        <div class="local-note"><svg class="icon"><use href="#i-check"/></svg><p>留在本机，随时继续<small>刷新或重新打开同一地址，记录依然保留。清除浏览器数据会同时清除记录。</small></p></div>
+      </aside>
+    </div>
+    <footer class="page-footer"><span>知食 · 认真记录，慢慢了解</span><span>每一笔，都是日常的一部分。</span></footer>
+  </main>
+
+  <dialog id="food-dialog" aria-labelledby="food-dialog-title"><form id="food-form" novalidate><div class="dialog-header"><div><p class="eyebrow">FOOD JOURNAL</p><h2 id="food-dialog-title">添加一条食物</h2></div><button class="icon-button" type="button" data-close="food-dialog" aria-label="关闭录入窗口"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-fields"><div class="two-fields"><div class="form-row"><label for="food-date">日期</label><input type="date" id="food-date" name="date" min="0001-01-01" required></div><div class="form-row"><label for="food-meal">餐次</label><select id="food-meal" name="meal"><option value="breakfast">早餐</option><option value="lunch">午餐</option><option value="dinner">晚餐</option><option value="snack">加餐</option></select></div></div><div class="form-row"><label for="food-name">吃了什么 <span>可以写明份量</span></label><input type="text" id="food-name" name="name" maxlength="200" placeholder="例如：米饭一碗" required autocomplete="off"></div><div class="form-row"><label for="food-kcal">本次摄入热量 <span>千卡 kcal</span></label><input type="text" id="food-kcal" name="kcal" inputmode="decimal" maxlength="30" placeholder="例如：230" required autocomplete="off"><p class="field-help">填写本次实际吃下份量的热量，可为 0 或小数。</p></div><p id="food-error" class="form-error" role="alert" hidden></p></div><div class="dialog-actions"><button class="button secondary" type="button" data-close="food-dialog">取消</button><button class="button primary" id="food-submit" type="submit" data-write>保存记录</button></div></form></dialog>
+
+  <dialog id="history-dialog" class="history-dialog" aria-labelledby="history-title"><div class="dialog-header"><div><p class="eyebrow">YOUR EVERYDAY</p><h2 id="history-title">过去的每一天</h2><p class="dialog-subtitle">选择日期，继续查看或补记。</p></div><button class="icon-button" type="button" data-close="history-dialog" aria-label="关闭历史记录"><svg class="icon"><use href="#i-close"/></svg></button></div><div id="history-list" class="history-list"></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
