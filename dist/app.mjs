@@ -1,6 +1,6 @@
 import {
   ACTIVITY_LABELS, ENERGY_TABLE, MEALS, formatEnergy, isCalendarDate, localDate,
-  lookupReference, multiplyEnergy, gramEnergy, recordedDates, referenceForDate, removeFood, saveFood,
+  lookupReference, multiplyEnergy, gramEnergy, recordedDates, recentFoods, referenceForDate, removeFood, saveFood,
   saveProfile, shiftDate, summarizeDay, saveDictionaryFood, removeDictionaryFood,
 } from './domain.mjs';
 import { createRepository, STORAGE_KEY } from './storage.mjs';
@@ -200,7 +200,9 @@ function updateFoodChoices() {
   const query = $('food-search').value.trim().toLocaleLowerCase();
   const foods = state.foods.filter(food => `${food.name} ${food.note}`.toLocaleLowerCase().includes(query));
   const previous = $('food-choice').value;
-  $('food-choice').innerHTML = '<option value="">请选择食物</option>' + foods.map(food => `<option value="${escapeHTML(food.id)}">${escapeHTML(food.name)}${food.note ? ` · ${escapeHTML(food.note)}` : ''}</option>`).join('');
+  const recent = recentFoods(state).filter(food => foods.some(item => item.id === food.id));
+  const option = food => `<option value="${escapeHTML(food.id)}">${escapeHTML(food.name)}${food.note ? ` · ${escapeHTML(food.note)}` : ''}</option>`;
+  $('food-choice').innerHTML = '<option value="">请选择食物</option>' + (recent.length ? `<optgroup label="最近使用">${recent.map(option).join('')}</optgroup>` : '') + `<optgroup label="全部食物">${foods.map(option).join('')}</optgroup>`;
   if (foods.some(food => food.id === previous)) $('food-choice').value = previous;
   updateFoodPortions();
 }

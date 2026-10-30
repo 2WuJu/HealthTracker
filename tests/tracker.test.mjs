@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import {
   emptyState, formatEnergy, isCalendarDate, localDate, lookupReference,
-  multiplyEnergy, normalizeEnergy, recordedDates, referenceForDate, removeFood,
+  multiplyEnergy, normalizeEnergy, recordedDates, recentFoods, referenceForDate, removeFood,
   saveFood, saveProfile, shiftDate, subtractEnergy, sumEnergy, summarizeDay, saveDictionaryFood, removeDictionaryFood,
 } from '../dist/domain.mjs';
 import { createRepository, STORAGE_KEY } from '../dist/storage.mjs';
@@ -330,4 +330,32 @@ test('字典计算精确，允许调整本次热量并拒绝无效选择和数�
   state = saveFood(state, input, { today, id: 'egg-entry' });
   assert.equal(summarizeDay(state, today).total, '125');
   assert.equal(state.foods[0].portions[0].kcal, '80');
+});
+
+test('最近使用的字典食物按保存顺序排列，重新选择可更换份量与数量', () => {
+  const storage = memoryStorage();
+  const repository = createRepository(storage, { foods: [], version: 'test' });
+  const rice = { name: '米饭', note: '', portions: [{ name: '小碗', kcal: '100' }, { name: '大碗', kcal: '200' }] };
+  repository.write(state => saveDictionaryFood(state, rice, { id: 'rice' }));
+  repository.write(state => saveDictionaryFood(state, { ...rice, name: '面条' }, { id: 'noodles' }));
+  const log = (id, portionIndex, quantity, kcal, entryId) => repository.write(state => saveFood(state, { date: today, meal: 'lunch', dictionaryFoodId: id, portionIndex, quantity, kcal }, { today, id: entryId }));
+  log('rice', '0', '1', '100', 'first');
+  log('noodles', '0', '1', '100', 'second');
+  log('rice', '1', '2', '400', 'third');
+  const restored = createRepository(storage, { foods: [], version: 'test' }).read();
+  assert.deepEqual(recentFoods(restored).map(item => item.id), ['rice', 'noodles']);
+  assert.deepEqual(restored.entries[2], { id: 'third', date: today, meal: 'lunch', name: '米饭', portion: '大碗', quantity: '2', kcal: '400' });
+});
+
+test('字典修改和删除更新最近使用入口，同时保留历史快照', () => {
+  let state = saveDictionaryFood(emptyState(), { name: '鸡蛋', note: '', portions: [{ name: '个', kcal: '80' }] }, { id: 'egg' });
+  state = saveFood(state, { date: today, meal: 'breakfast', dictionaryFoodId: 'egg', portionIndex: '0', quantity: '1', kcal: '80' }, { today, id: 'entry' });
+  state = saveDictionaryFood(state, { name: '鸭蛋', note: '', portions: [{ name: '枚', kcal: '120' }] }, { foodId: 'egg' });
+  assert.equal(recentFoods(state)[0].name, '鸭蛋');
+  assert.equal(recentFoods(state)[0].portions[0].kcal, '120');
+  state = removeDictionaryFood(state, 'egg');
+  assert.deepEqual(recentFoods(state), []);
+  state = saveDictionaryFood(state, { name: '新食物', note: '', portions: [{ name: '份', kcal: '10' }] }, { id: 'egg' });
+  assert.deepEqual(recentFoods(state), []);
+  assert.deepEqual(state.entries[0], { id: 'entry', date: today, meal: 'breakfast', name: '鸡蛋', portion: '个', quantity: '1', kcal: '80' });
 });

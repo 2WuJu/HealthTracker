@@ -10,6 +10,10 @@ function assert(condition) {
 
 export function validateState(state) {
   assert(state && [1, 2].includes(state.version) && Array.isArray(state.entries) && Array.isArray(state.references));
+  if (state.recentFoodIds !== undefined) {
+    assert(Array.isArray(state.recentFoodIds) && state.recentFoodIds.length <= 10 && state.recentFoodIds.every(id => typeof id === 'string' && id.length > 0));
+    assert(new Set(state.recentFoodIds).size === state.recentFoodIds.length);
+  }
   if (state.version === 2) {
     assert(Array.isArray(state.foods));
     const foodIds = new Set();

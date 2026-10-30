@@ -151,7 +151,12 @@ export function saveFood(state, input, { today = localDate(), entryId = null, id
   const snapshot = selected ? { portion: portion.name, quantity } : previous?.portion ? { portion: previous.portion, quantity: previous.quantity } : {};
   const record = { id: entryId ?? id, date: input.date, meal: input.meal, name, ...snapshot, kcal };
   if (entryId && !state.entries.some(item => item.id === entryId)) throw new Error('这条记录已不存在，请刷新后重试。');
-  return { ...state, entries: entryId ? state.entries.map(item => item.id === entryId ? record : item) : [...state.entries, record] };
+  const recentFoodIds = selected && !entryId ? [selected.id, ...(state.recentFoodIds ?? []).filter(id => id !== selected.id)].slice(0, 10) : state.recentFoodIds;
+  return { ...state, ...(recentFoodIds ? { recentFoodIds } : {}), entries: entryId ? state.entries.map(item => item.id === entryId ? record : item) : [...state.entries, record] };
+}
+
+export function recentFoods(state) {
+  return (state.recentFoodIds ?? []).map(id => state.foods.find(food => food.id === id)).filter(Boolean);
 }
 
 export function removeFood(state, id) {
@@ -200,5 +205,5 @@ export function saveDictionaryFood(state, input, { foodId = null, id = globalThi
 
 export function removeDictionaryFood(state, id) {
   if (!state.foods.some(food => food.id === id)) throw new Error('这种食物已不存在，请刷新后重试。');
-  return { ...state, foods: state.foods.filter(food => food.id !== id) };
+  return { ...state, ...(state.recentFoodIds ? { recentFoodIds: state.recentFoodIds.filter(foodId => foodId !== id) } : {}), foods: state.foods.filter(food => food.id !== id) };
 }
