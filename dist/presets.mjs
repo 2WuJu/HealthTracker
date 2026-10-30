@@ -38,7 +38,7 @@ const rows = [
   ],
   [
     "167818",
-    "猪里脊（生，瘦肉和脂肪）",
+    "猪腰肉（整块，生，瘦肉和脂肪）",
     "Pork, fresh, loin, whole, separable lean and fat, raw",
     "198"
   ],

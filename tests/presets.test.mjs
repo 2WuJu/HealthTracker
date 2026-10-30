@@ -44,3 +44,24 @@ test('预置更新保留个人修改、删除和新增，并更新未修改项',
   second.write(s => s);
   assert.equal(createRepository(storage, { foods: updated, version: 'v2' }).read().foods.some(f => f.id === 'p2'), false);
 });
+
+test('用户可以更改预置食物的每百克热量并用于记录', async () => {
+  const { saveDictionaryFood, saveFood } = await import('../dist/domain.mjs');
+  const repository = createRepository(memoryStorage());
+  const original = repository.read().foods.find(f => f.id === 'usda-sr-169979');
+  repository.write(s => saveDictionaryFood(s, { ...original, name: '我的白菜', kcalPer100g: '20.5' }, { foodId: original.id }));
+  const state = repository.read();
+  const next = saveFood(state, { date: '2026-10-23', meal: 'lunch', dictionaryFoodId: original.id, portionIndex: 'grams', quantity: '50' }, { today: '2026-10-23', id: 'meal' });
+  assert.equal(next.entries[0].kcal, '10.25');
+});
+
+test('个人修改碰巧与后续预置相同时，仍不会被再下一次更新覆盖', async () => {
+  const { saveDictionaryFood } = await import('../dist/domain.mjs');
+  const storage = memoryStorage();
+  const preset = name => ({ id: 'p', name, note: '', portions: [{ name: '份', kcal: '10' }] });
+  const first = createRepository(storage, { foods: [preset('A')], version: 'v1' });
+  first.write(s => saveDictionaryFood(s, preset('B'), { foodId: 'p' }));
+  const second = createRepository(storage, { foods: [preset('B')], version: 'v2' });
+  second.write(s => s);
+  assert.equal(createRepository(storage, { foods: [preset('C')], version: 'v3' }).read().foods[0].name, 'B');
+});

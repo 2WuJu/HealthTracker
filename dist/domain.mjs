@@ -191,7 +191,11 @@ export function saveDictionaryFood(state, input, { foodId = null, id = globalThi
   });
   if (foodId && !state.foods.some(food => food.id === foodId)) throw new Error('这种食物已不存在，请刷新后重试。');
   const food = { ...previousFood, id: foodId ?? id, name, note, portions };
-  return { ...state, foods: foodId ? state.foods.map(item => item.id === foodId ? food : item) : [...state.foods, food] };
+  if (previousFood?.kcalPer100g !== undefined && input.kcalPer100g !== undefined) food.kcalPer100g = normalizeEnergy(input.kcalPer100g);
+  const presetCatalog = foodId && state.presetCatalog?.foods.some(item => item.id === foodId)
+    ? { ...state.presetCatalog, overridden: [...new Set([...(state.presetCatalog.overridden ?? []), foodId])] }
+    : state.presetCatalog;
+  return { ...state, ...(presetCatalog ? { presetCatalog } : {}), foods: foodId ? state.foods.map(item => item.id === foodId ? food : item) : [...state.foods, food] };
 }
 
 export function removeDictionaryFood(state, id) {

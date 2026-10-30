@@ -27,6 +27,13 @@ export function validateState(state) {
       }
     }
   }
+  if (state.presetCatalog !== undefined) {
+    const catalog = state.presetCatalog;
+    assert(catalog && typeof catalog.version === 'string' && Array.isArray(catalog.foods));
+    if (catalog.overridden !== undefined) assert(Array.isArray(catalog.overridden) && catalog.overridden.every(id => typeof id === 'string'));
+    assert(catalog.foods.every(food => food && typeof food.id === 'string' && food.id.length > 0));
+    assert(new Set(catalog.foods.map(food => food.id)).size === catalog.foods.length);
+  }
   const ids = new Set();
   for (const entry of state.entries) {
     assert(typeof entry.id === 'string' && entry.id.length > 0 && !ids.has(entry.id));
@@ -52,18 +59,19 @@ export function validateState(state) {
 
 function reconcilePresets(state, catalog) {
   const old = state.presetCatalog?.foods ?? [];
+  const overridden = new Set(state.presetCatalog?.overridden ?? []);
   const oldById = new Map(old.map(food => [food.id, food]));
   const newById = new Map(catalog.foods.map(food => [food.id, food]));
   const foods = state.foods.flatMap(food => {
     const previous = oldById.get(food.id);
-    if (!previous || JSON.stringify(food) !== JSON.stringify(previous)) return [food];
+    if (!previous || overridden.has(food.id) || JSON.stringify(food) !== JSON.stringify(previous)) return [food];
     return newById.has(food.id) ? [clone(newById.get(food.id))] : [];
   });
   for (const food of catalog.foods) {
     if (!oldById.has(food.id) && !foods.some(item => item.id === food.id)) foods.push(clone(food));
   }
   const baseline = [...catalog.foods, ...old.filter(food => !newById.has(food.id))];
-  return { ...state, foods, presetCatalog: { version: catalog.version, foods: clone(baseline) } };
+  return { ...state, foods, presetCatalog: { version: catalog.version, foods: clone(baseline), overridden: [...overridden] } };
 }
 
 export function createRepository(storage, catalog = { foods: PRESET_FOODS, version: PRESET_VERSION }) {
