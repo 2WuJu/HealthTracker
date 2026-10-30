@@ -12,6 +12,10 @@ const repository = createRepository({
   getItem: key => window.localStorage.getItem(key),
   setItem: (key, value) => window.localStorage.setItem(key, value),
 });
+async function writeState(operation) {
+  if (!navigator.locks) throw new Error('浏览器不支持安全的跨窗口写入，请使用支持 Web Locks 的浏览器。');
+  return navigator.locks.request('healthy-tracker-storage-write', () => repository.write(operation));
+}
 let state = repository.read();
 let selectedDate = localDate();
 let lastToday = selectedDate;
@@ -206,11 +210,11 @@ function openDictionaryEditor(id = null) {
   $('dictionary-name').focus();
 }
 
-$('dictionary-form').addEventListener('submit', event => {
+$('dictionary-form').addEventListener('submit', async event => {
   event.preventDefault();
   const portions = [...$('portion-list').querySelectorAll('.portion-row')].map(row => ({ name: row.querySelector('[name="portion-name"]').value, kcal: row.querySelector('[name="portion-kcal"]').value }));
   try {
-    state = repository.write(current => saveDictionaryFood(current, { name: $('dictionary-name').value, note: $('dictionary-note').value, portions }, { foodId: editingDictionaryId }));
+    state = await writeState(current => saveDictionaryFood(current, { name: $('dictionary-name').value, note: $('dictionary-note').value, portions }, { foodId: editingDictionaryId }));
     $('dictionary-edit-dialog').close();
     setError('dictionary-error');
     renderDictionary();
@@ -218,11 +222,11 @@ $('dictionary-form').addEventListener('submit', event => {
   } catch (error) { setError('dictionary-form-error', error.message); }
 });
 
-$('food-form').addEventListener('submit', event => {
+$('food-form').addEventListener('submit', async event => {
   event.preventDefault();
   const fields = Object.fromEntries(new FormData(event.currentTarget));
   try {
-    state = repository.write(current => saveFood(current, fields, { today: localDate(), entryId: editingId }));
+    state = await writeState(current => saveFood(current, fields, { today: localDate(), entryId: editingId }));
     const edited = editingId !== null;
     $('food-dialog').close();
     selectDate(fields.date);
@@ -232,10 +236,10 @@ $('food-form').addEventListener('submit', event => {
   }
 });
 
-$('profile-form').addEventListener('submit', event => {
+$('profile-form').addEventListener('submit', async event => {
   event.preventDefault();
   try {
-    state = repository.write(current => saveProfile(current, profileInput(), localDate()));
+    state = await writeState(current => saveProfile(current, profileInput(), localDate()));
     profileDirty = false;
     setError('profile-error');
     setError('page-error');
@@ -258,7 +262,7 @@ $('previous-day').addEventListener('click', () => selectDate(shiftDate(selectedD
 $('next-day').addEventListener('click', () => selectDate(shiftDate(selectedDate, 1)));
 $('back-today').addEventListener('click', () => selectDate(localDate()));
 
-document.addEventListener('click', event => {
+document.addEventListener('click', async event => {
   const close = event.target.closest('[data-close]');
   if (close) { $(close.dataset.close).close(); return; }
   const button = event.target.closest('button[data-action]');
@@ -272,7 +276,7 @@ document.addEventListener('click', event => {
     case 'dictionary-delete': {
       const food = state.foods.find(item => item.id === button.dataset.id);
       if (!food || !window.confirm(`删除字典中的“${food.name}”？`)) break;
-      try { state = repository.write(current => removeDictionaryFood(current, food.id)); setError('dictionary-error'); renderDictionary(); toast('食物已删除'); }
+      try { state = await writeState(current => removeDictionaryFood(current, food.id)); setError('dictionary-error'); renderDictionary(); toast('食物已删除'); }
       catch (error) { setError('dictionary-error', error.message); }
       break;
     }
@@ -282,7 +286,7 @@ document.addEventListener('click', event => {
       const entry = state.entries.find(food => food.id === button.dataset.id);
       if (!entry || !window.confirm(`删除“${entry.name}”这条饮食记录？`)) break;
       try {
-        state = repository.write(current => removeFood(current, entry.id));
+        state = await writeState(current => removeFood(current, entry.id));
         render();
         setError('page-error');
         toast('这条记录已删除');
