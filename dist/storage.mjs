@@ -1,3 +1,4 @@
+import { PRESET_FOODS, PRESET_VERSION } from './presets.mjs';
 import { emptyState, isCalendarDate, MEALS, normalizeEnergy, validateProfile } from './domain.mjs';
 
 export const STORAGE_KEY = 'healthy-tracker.v1';
@@ -17,7 +18,9 @@ export function validateState(state) {
       foodIds.add(food.id);
       assert(typeof food.name === 'string' && food.name.trim().length > 0 && food.name.length <= 200);
       assert(typeof food.note === 'string' && food.note.length <= 500);
-      assert(Array.isArray(food.portions) && food.portions.length > 0);
+      assert(Array.isArray(food.portions) && (food.portions.length > 0 || food.kcalPer100g !== undefined));
+      if (food.kcalPer100g !== undefined) assert(typeof food.kcalPer100g === 'string' && normalizeEnergy(food.kcalPer100g) === food.kcalPer100g);
+      if (food.source !== undefined) assert(food.source && typeof food.source.version === 'string' && typeof food.source.url === 'string');
       for (const portion of food.portions) {
         assert(portion && typeof portion.name === 'string' && portion.name.trim().length > 0 && portion.name.length <= 100);
         assert(typeof portion.kcal === 'string' && normalizeEnergy(portion.kcal) === portion.kcal);
@@ -47,15 +50,31 @@ export function validateState(state) {
   return state;
 }
 
-export function createRepository(storage) {
-  let state = emptyState();
+function reconcilePresets(state, catalog) {
+  const old = state.presetCatalog?.foods ?? [];
+  const oldById = new Map(old.map(food => [food.id, food]));
+  const newById = new Map(catalog.foods.map(food => [food.id, food]));
+  const foods = state.foods.flatMap(food => {
+    const previous = oldById.get(food.id);
+    if (!previous || JSON.stringify(food) !== JSON.stringify(previous)) return [food];
+    return newById.has(food.id) ? [clone(newById.get(food.id))] : [];
+  });
+  for (const food of catalog.foods) {
+    if (!oldById.has(food.id) && !foods.some(item => item.id === food.id)) foods.push(clone(food));
+  }
+  const baseline = [...catalog.foods, ...old.filter(food => !newById.has(food.id))];
+  return { ...state, foods, presetCatalog: { version: catalog.version, foods: clone(baseline) } };
+}
+
+export function createRepository(storage, catalog = { foods: PRESET_FOODS, version: PRESET_VERSION }) {
+  let state = reconcilePresets(emptyState(), catalog);
   let raw = null;
   let error = null;
   try {
     raw = storage.getItem(STORAGE_KEY);
     if (raw !== null) {
       const stored = validateState(JSON.parse(raw));
-      state = stored.version === 1 ? { ...stored, version: 2, foods: [] } : stored;
+      state = reconcilePresets(stored.version === 1 ? { ...stored, version: 2, foods: [] } : stored, catalog);
     }
   } catch {
     error = '暂时无法读取本机记录。已有数据未被覆盖；请检查浏览器存储设置，或在原来的浏览器中重新打开。';

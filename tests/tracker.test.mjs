@@ -232,7 +232,7 @@ test('本机服务可提供应用和模块，拒绝健康数据写入及应用�
   assert.equal(page.status, 200);
   assert.match(await page.text(), /知食/);
   assert.match(page.headers.get('content-security-policy'), /script-src 'self'/);
-  for (const path of ['/app.mjs', '/domain.mjs', '/storage.mjs', '/styles.css', '/icon.svg']) {
+  for (const path of ['/app.mjs', '/domain.mjs', '/storage.mjs', '/presets.mjs', '/styles.css', '/icon.svg']) {
     const response = await fetch(base + path);
     assert.equal(response.status, 200, path);
     await response.arrayBuffer();
@@ -258,13 +258,13 @@ test('字典支持同名食物、备注及独立份量，修改删除不影响�
   repository.write(state => saveDictionaryFood(state, rice, { id: 'one' }));
   repository.write(state => saveDictionaryFood(state, { ...rice, note: '糙米' }, { id: 'two' }));
   repository.write(state => saveDictionaryFood(state, { ...rice, name: '米饭', portions: [{ name: '一拳头', kcal: '0' }] }, { foodId: 'one' }));
-  let foods = createRepository(storage).read().foods;
+  let foods = createRepository(storage).read().foods.filter(item => ['one', 'two'].includes(item.id));
   assert.equal(foods.length, 2);
   assert.deepEqual(foods[0].portions, [{ name: '一拳头', kcal: '0' }]);
   assert.equal(foods[1].note, '糙米');
   assert.equal(foods[1].portions[1].kcal, '230.5');
   repository.write(state => removeDictionaryFood(state, 'one'));
-  foods = createRepository(storage).read().foods;
+  foods = createRepository(storage).read().foods.filter(item => ['one', 'two'].includes(item.id));
   assert.deepEqual(foods.map(item => item.id), ['two']);
   assert.throws(() => repository.write(state => saveDictionaryFood(state, { name: 'x', portions: [] }, { id: 'invalid' })));
 });

@@ -1,6 +1,6 @@
 import {
   ACTIVITY_LABELS, ENERGY_TABLE, MEALS, formatEnergy, isCalendarDate, localDate,
-  lookupReference, multiplyEnergy, recordedDates, referenceForDate, removeFood, saveFood,
+  lookupReference, multiplyEnergy, gramEnergy, recordedDates, referenceForDate, removeFood, saveFood,
   saveProfile, shiftDate, summarizeDay, saveDictionaryFood, removeDictionaryFood,
 } from './domain.mjs';
 import { createRepository, STORAGE_KEY } from './storage.mjs';
@@ -207,16 +207,17 @@ function updateFoodChoices() {
 
 function updateFoodPortions() {
   const food = state.foods.find(item => item.id === $('food-choice').value);
-  $('food-portion').innerHTML = food ? food.portions.map((portion, index) => `<option value="${index}">${escapeHTML(portion.name)} · ${formatEnergy(portion.kcal)} 千卡</option>`).join('') : '<option value="">请选择份量</option>';
+  $('food-portion').innerHTML = food ? (food.kcalPer100g !== undefined ? `<option value="grams">克 · 每 100 克 ${formatEnergy(food.kcalPer100g)} 千卡</option>` : '') + food.portions.map((portion, index) => `<option value="${index}">${escapeHTML(portion.name)} · ${formatEnergy(portion.kcal)} 千卡</option>`).join('') : '<option value="">请选择份量</option>';
   updateFoodEstimate();
 }
 
 function updateFoodEstimate() {
   const food = state.foods.find(item => item.id === $('food-choice').value);
+  const grams = $('food-portion').value === 'grams';
   const portion = food?.portions[Number($('food-portion').value)];
   try {
-    if (!portion || !$('food-quantity').value.trim()) throw new Error();
-    const estimate = multiplyEnergy(portion.kcal, $('food-quantity').value);
+    if ((!portion && !grams) || !$('food-quantity').value.trim()) throw new Error();
+    const estimate = grams ? gramEnergy(food.kcalPer100g, $('food-quantity').value) : multiplyEnergy(portion.kcal, $('food-quantity').value);
     $('food-estimate').textContent = `估算热量：${formatEnergy(estimate)} 千卡；可在下方调整本次热量。`;
     $('food-kcal').value = estimate;
   } catch {
@@ -233,7 +234,7 @@ $('food-quantity').addEventListener('input', updateFoodEstimate);
 
 
 function renderDictionary() {
-  $('dictionary-list').innerHTML = state.foods.length ? state.foods.map(food => `<article class="dictionary-item"><div><strong>${escapeHTML(food.name)}</strong>${food.note ? `<p>${escapeHTML(food.note)}</p>` : ''}<p>${food.portions.map(portion => `${escapeHTML(portion.name)} · ${formatEnergy(portion.kcal)} 千卡`).join(' / ')}</p></div><div class="food-actions"><button class="icon-button" type="button" data-action="dictionary-edit" data-id="${escapeHTML(food.id)}" data-write aria-label="修改${escapeHTML(food.name)}">${icon('edit')}</button><button class="icon-button" type="button" data-action="dictionary-delete" data-id="${escapeHTML(food.id)}" data-write aria-label="删除${escapeHTML(food.name)}">${icon('trash')}</button></div></article>`).join('') : '<p class="history-empty">字典还是空的，添加常吃的食物吧。</p>';
+  $('dictionary-list').innerHTML = state.foods.length ? state.foods.map(food => `<article class="dictionary-item"><div><strong>${escapeHTML(food.name)}</strong>${food.note ? `<p>${escapeHTML(food.note)}</p>` : ''}<p>${food.kcalPer100g !== undefined ? `每 100 克 ${formatEnergy(food.kcalPer100g)} 千卡 / ` : ''}${food.portions.map(portion => `${escapeHTML(portion.name)} · ${formatEnergy(portion.kcal)} 千卡`).join(' / ')}</p>${food.source ? `<p>来源：<a href="${escapeHTML(food.source.url)}" target="_blank" rel="noopener noreferrer">USDA FoodData Central · ${escapeHTML(food.source.version)}</a></p>` : ''}</div><div class="food-actions"><button class="icon-button" type="button" data-action="dictionary-edit" data-id="${escapeHTML(food.id)}" data-write aria-label="修改${escapeHTML(food.name)}">${icon('edit')}</button><button class="icon-button" type="button" data-action="dictionary-delete" data-id="${escapeHTML(food.id)}" data-write aria-label="删除${escapeHTML(food.name)}">${icon('trash')}</button></div></article>`).join('') : '<p class="history-empty">字典还是空的，添加常吃的食物吧。</p>';
   document.querySelectorAll('#dictionary-list [data-write]').forEach(button => { button.disabled = Boolean(repository.error); });
 }
 

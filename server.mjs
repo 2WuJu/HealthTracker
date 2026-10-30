@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 
 const publicRoot = new URL('./dist/', import.meta.url);
 const mimeTypes = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml' };
-const publicFiles = new Set(['index.html', 'styles.css', 'app.mjs', 'domain.mjs', 'storage.mjs', 'icon.svg']);
+const publicFiles = new Set(['index.html', 'styles.css', 'app.mjs', 'domain.mjs', 'storage.mjs', 'presets.mjs', 'icon.svg']);
 
 export function createServer() {
   return http.createServer(async (request, response) => {

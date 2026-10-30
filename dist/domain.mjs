@@ -76,6 +76,12 @@ export function multiplyEnergy(left, right) {
   return fromScaled(a.digits * b.digits, a.scale + b.scale);
 }
 
+export function gramEnergy(per100g, grams) {
+  const a = decimalParts(normalizeEnergy(per100g));
+  const b = decimalParts(normalizeEnergy(grams));
+  return fromScaled(a.digits * b.digits, a.scale + b.scale + 2);
+}
+
 export function subtractEnergy(left, right) {
   const a = decimalParts(left);
   const b = decimalParts(right);
@@ -133,14 +139,14 @@ export function saveFood(state, input, { today = localDate(), entryId = null, id
   const selected = input.dictionaryFoodId ? state.foods.find(food => food.id === input.dictionaryFoodId) : null;
   if (input.dictionaryFoodId && !selected) throw new Error('这种食物已不存在，请重新选择。');
   const portionIndex = String(input.portionIndex ?? '');
-  const portion = selected && /^\d+$/.test(portionIndex) ? selected.portions[Number(portionIndex)] : null;
+  const portion = selected && portionIndex === 'grams' && selected.kcalPer100g !== undefined ? { name: '克' } : selected && /^\d+$/.test(portionIndex) ? selected.portions[Number(portionIndex)] : null;
   if (selected && !portion) throw new Error('请选择份量。');
   const quantity = selected ? normalizeEnergy(input.quantity) : null;
   if (selected && quantity === '0') throw new Error('数量必须大于零。');
   const name = String(selected?.name ?? input.name ?? '').trim();
   if (!name) throw new Error('请填写食物名称，也可以在名称中写明份量。');
   if (name.length > 200) throw new Error('食物名称请控制在 200 字以内。');
-  const kcal = normalizeEnergy(input.kcal, 61);
+  const kcal = normalizeEnergy(input.kcal ?? (portionIndex === 'grams' && selected ? gramEnergy(selected.kcalPer100g, quantity) : ''), 61);
   const previous = entryId ? state.entries.find(item => item.id === entryId) : null;
   const snapshot = selected ? { portion: portion.name, quantity } : previous?.portion ? { portion: previous.portion, quantity: previous.quantity } : {};
   const record = { id: entryId ?? id, date: input.date, meal: input.meal, name, ...snapshot, kcal };
@@ -176,14 +182,15 @@ export function saveDictionaryFood(state, input, { foodId = null, id = globalThi
   const note = String(input.note ?? '').trim();
   if (!name || name.length > 200) throw new Error('请填写 200 字以内的食物名称。');
   if (note.length > 500) throw new Error('备注请控制在 500 字以内。');
-  if (!Array.isArray(input.portions) || !input.portions.length) throw new Error('请至少填写一个份量。');
+  const previousFood = foodId ? state.foods.find(food => food.id === foodId) : null;
+  if (!Array.isArray(input.portions) || (!input.portions.length && previousFood?.kcalPer100g === undefined)) throw new Error('请至少填写一个份量。');
   const portions = input.portions.map(portion => {
     const name = String(portion.name ?? '').trim();
     if (!name || name.length > 100) throw new Error('请填写 100 字以内的份量名称。');
     return { name, kcal: normalizeEnergy(portion.kcal) };
   });
   if (foodId && !state.foods.some(food => food.id === foodId)) throw new Error('这种食物已不存在，请刷新后重试。');
-  const food = { id: foodId ?? id, name, note, portions };
+  const food = { ...previousFood, id: foodId ?? id, name, note, portions };
   return { ...state, foods: foodId ? state.foods.map(item => item.id === foodId ? food : item) : [...state.foods, food] };
 }
 
