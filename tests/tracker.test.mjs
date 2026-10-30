@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   emptyState, formatEnergy, isCalendarDate, localDate, lookupReference,
   normalizeEnergy, recordedDates, referenceForDate, removeFood,
-  saveFood, saveProfile, shiftDate, subtractEnergy, sumEnergy, summarizeDay,
+  saveFood, saveProfile, shiftDate, subtractEnergy, sumEnergy, summarizeDay, saveDictionaryFood, removeDictionaryFood,
 } from '../dist/domain.mjs';
 import { createRepository, STORAGE_KEY } from '../dist/storage.mjs';
 import { createServer } from '../server.mjs';
@@ -191,7 +191,7 @@ test('存储写入失败不修改内存中的成功状态，也不覆盖已保�
 });
 
 test('损坏数据、未知版本和禁止读取存储时停止写入，不静默清空原数据', () => {
-  for (const raw of ['{broken', JSON.stringify({ version: 2, entries: [], references: [] }), JSON.stringify({ version: 1, entries: [{ id: 'bad' }], references: [] })]) {
+  for (const raw of ['{broken', JSON.stringify({ version: 3, entries: [], references: [] }), JSON.stringify({ version: 1, entries: [{ id: 'bad' }], references: [] })]) {
     const storage = memoryStorage();
     storage.setItem(STORAGE_KEY, raw);
     const repository = createRepository(storage);
@@ -248,4 +248,54 @@ test('本机服务可提供应用和模块，拒绝健康数据写入及应用�
   const post = await fetch(base, { method: 'POST', body: 'not accepted' });
   assert.equal(post.status, 405);
   await post.text();
+});
+
+
+test('字典支持同名食物、备注及独立份量，修改删除不影响另一条', () => {
+  const storage = memoryStorage();
+  const repository = createRepository(storage);
+  const rice = { name: '米饭', note: '白米', portions: [{ name: '小碗', kcal: '120' }, { name: '大碗', kcal: '230.5' }] };
+  repository.write(state => saveDictionaryFood(state, rice, { id: 'one' }));
+  repository.write(state => saveDictionaryFood(state, { ...rice, note: '糙米' }, { id: 'two' }));
+  repository.write(state => saveDictionaryFood(state, { ...rice, name: '米饭', portions: [{ name: '一拳头', kcal: '0' }] }, { foodId: 'one' }));
+  let foods = createRepository(storage).read().foods;
+  assert.equal(foods.length, 2);
+  assert.deepEqual(foods[0].portions, [{ name: '一拳头', kcal: '0' }]);
+  assert.equal(foods[1].note, '糙米');
+  assert.equal(foods[1].portions[1].kcal, '230.5');
+  repository.write(state => removeDictionaryFood(state, 'one'));
+  foods = createRepository(storage).read().foods;
+  assert.deepEqual(foods.map(item => item.id), ['two']);
+  assert.throws(() => repository.write(state => saveDictionaryFood(state, { name: 'x', portions: [] }, { id: 'invalid' })));
+});
+
+test('旧版本升级保留记录和参考值，字典写入失败或并发修改不覆盖数据', () => {
+  const storage = memoryStorage();
+  const old = saveProfile(food(emptyState(), {}, 'entry'), male, yesterday);
+  delete old.foods; old.version = 1;
+  const raw = JSON.stringify(old);
+  storage.setItem(STORAGE_KEY, raw);
+  const repository = createRepository(storage);
+  const stale = createRepository(storage);
+  assert.deepEqual(repository.read().entries, old.entries);
+  assert.deepEqual(repository.read().references, old.references);
+  assert.equal(storage.getItem(STORAGE_KEY), raw);
+  const item = { name: '鸡蛋', note: '', portions: [{ name: '个', kcal: '80' }] };
+  storage.failWrites = true;
+  assert.throws(() => repository.write(state => saveDictionaryFood(state, item, { id: 'egg' })), /未保存/);
+  assert.equal(storage.getItem(STORAGE_KEY), raw);
+  storage.failWrites = false;
+  repository.write(state => saveDictionaryFood(state, item, { id: 'egg' }));
+  assert.throws(() => stale.write(state => saveDictionaryFood(state, item, { id: 'stale' })), /另一窗口/);
+  assert.deepEqual(createRepository(storage).read().entries, old.entries);
+});
+
+test('损坏的字典数据无法被覆盖', () => {
+  const storage = memoryStorage();
+  const raw = JSON.stringify({ version: 2, entries: [], references: [], foods: [{ id: 'x', name: '鸡蛋', note: '', portions: [] }] });
+  storage.setItem(STORAGE_KEY, raw);
+  const repository = createRepository(storage);
+  assert.ok(repository.error);
+  assert.throws(() => repository.write(state => state));
+  assert.equal(storage.getItem(STORAGE_KEY), raw);
 });

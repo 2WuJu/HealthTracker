@@ -1,7 +1,7 @@
 import {
   ACTIVITY_LABELS, ENERGY_TABLE, MEALS, formatEnergy, isCalendarDate, localDate,
   lookupReference, recordedDates, referenceForDate, removeFood, saveFood,
-  saveProfile, shiftDate, summarizeDay,
+  saveProfile, shiftDate, summarizeDay, saveDictionaryFood, removeDictionaryFood,
 } from './domain.mjs';
 import { createRepository, STORAGE_KEY } from './storage.mjs';
 
@@ -18,6 +18,7 @@ let lastToday = selectedDate;
 let followsToday = true;
 let editingId = null;
 let profileDirty = false;
+let editingDictionaryId = null;
 let toastTimer;
 
 function dateLabel(value, includeYear = false) {
@@ -175,6 +176,48 @@ function openFood(meal = 'breakfast', entryId = null) {
   $('food-name').focus();
 }
 
+
+function renderDictionary() {
+  $('dictionary-list').innerHTML = state.foods.length ? state.foods.map(food => `<article class="dictionary-item"><div><strong>${escapeHTML(food.name)}</strong>${food.note ? `<p>${escapeHTML(food.note)}</p>` : ''}<p>${food.portions.map(portion => `${escapeHTML(portion.name)} · ${formatEnergy(portion.kcal)} 千卡`).join(' / ')}</p></div><div class="food-actions"><button class="icon-button" type="button" data-action="dictionary-edit" data-id="${escapeHTML(food.id)}" data-write aria-label="修改${escapeHTML(food.name)}">${icon('edit')}</button><button class="icon-button" type="button" data-action="dictionary-delete" data-id="${escapeHTML(food.id)}" data-write aria-label="删除${escapeHTML(food.name)}">${icon('trash')}</button></div></article>`).join('') : '<p class="history-empty">字典还是空的，添加常吃的食物吧。</p>';
+  document.querySelectorAll('#dictionary-list [data-write]').forEach(button => { button.disabled = Boolean(repository.error); });
+}
+
+function addPortion(portion = { name: '', kcal: '' }) {
+  const row = document.createElement('div');
+  row.className = 'portion-row';
+  row.innerHTML = `<label>份量名称<input name="portion-name" list="portion-options" maxlength="100" placeholder="例如：小碗" required></label><label>估算热量（千卡）<input name="portion-kcal" inputmode="decimal" maxlength="30" placeholder="例如：200" required></label><button class="text-button" type="button" data-action="portion-remove" aria-label="删除此份量">删除</button>`;
+  row.querySelector('[name="portion-name"]').value = portion.name;
+  row.querySelector('[name="portion-kcal"]').value = portion.kcal;
+  $('portion-list').append(row);
+}
+
+function openDictionaryEditor(id = null) {
+  const food = id ? state.foods.find(item => item.id === id) : null;
+  if (id && !food) return;
+  editingDictionaryId = id;
+  $('dictionary-form').reset();
+  $('dictionary-name').value = food?.name ?? '';
+  $('dictionary-note').value = food?.note ?? '';
+  $('dictionary-edit-title').textContent = food ? '修改食物' : '添加食物';
+  $('portion-list').replaceChildren();
+  (food?.portions ?? [undefined]).forEach(addPortion);
+  setError('dictionary-form-error');
+  $('dictionary-edit-dialog').showModal();
+  $('dictionary-name').focus();
+}
+
+$('dictionary-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const portions = [...$('portion-list').querySelectorAll('.portion-row')].map(row => ({ name: row.querySelector('[name="portion-name"]').value, kcal: row.querySelector('[name="portion-kcal"]').value }));
+  try {
+    state = repository.write(current => saveDictionaryFood(current, { name: $('dictionary-name').value, note: $('dictionary-note').value, portions }, { foodId: editingDictionaryId }));
+    $('dictionary-edit-dialog').close();
+    setError('dictionary-error');
+    renderDictionary();
+    toast('食物已保存在本机');
+  } catch (error) { setError('dictionary-form-error', error.message); }
+});
+
 $('food-form').addEventListener('submit', event => {
   event.preventDefault();
   const fields = Object.fromEntries(new FormData(event.currentTarget));
@@ -221,6 +264,18 @@ document.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]');
   if (!button || button.disabled) return;
   switch (button.dataset.action) {
+    case 'dictionary': renderDictionary(); setError('dictionary-error', repository.error ?? ''); $('dictionary-dialog').showModal(); break;
+    case 'dictionary-add': openDictionaryEditor(); break;
+    case 'dictionary-edit': openDictionaryEditor(button.dataset.id); break;
+    case 'portion-add': addPortion(); break;
+    case 'portion-remove': button.closest('.portion-row').remove(); break;
+    case 'dictionary-delete': {
+      const food = state.foods.find(item => item.id === button.dataset.id);
+      if (!food || !window.confirm(`删除字典中的“${food.name}”？`)) break;
+      try { state = repository.write(current => removeDictionaryFood(current, food.id)); setError('dictionary-error'); renderDictionary(); toast('食物已删除'); }
+      catch (error) { setError('dictionary-error', error.message); }
+      break;
+    }
     case 'add': openFood(button.dataset.meal); break;
     case 'edit': openFood(undefined, button.dataset.id); break;
     case 'delete': {

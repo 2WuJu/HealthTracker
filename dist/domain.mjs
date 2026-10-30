@@ -102,7 +102,7 @@ export function lookupReference(input) {
 }
 
 export function emptyState() {
-  return { version: 1, entries: [], references: [] };
+  return { version: 2, entries: [], references: [], foods: [] };
 }
 
 export function saveProfile(state, input, effectiveDate) {
@@ -154,4 +154,25 @@ export function summarizeDay(state, date) {
 
 export function recordedDates(state) {
   return [...new Set(state.entries.map(item => item.date))].sort().reverse();
+}
+
+export function saveDictionaryFood(state, input, { foodId = null, id = globalThis.crypto.randomUUID() } = {}) {
+  const name = String(input.name ?? '').trim();
+  const note = String(input.note ?? '').trim();
+  if (!name || name.length > 200) throw new Error('请填写 200 字以内的食物名称。');
+  if (note.length > 500) throw new Error('备注请控制在 500 字以内。');
+  if (!Array.isArray(input.portions) || !input.portions.length) throw new Error('请至少填写一个份量。');
+  const portions = input.portions.map(portion => {
+    const name = String(portion.name ?? '').trim();
+    if (!name || name.length > 100) throw new Error('请填写 100 字以内的份量名称。');
+    return { name, kcal: normalizeEnergy(portion.kcal) };
+  });
+  if (foodId && !state.foods.some(food => food.id === foodId)) throw new Error('这种食物已不存在，请刷新后重试。');
+  const food = { id: foodId ?? id, name, note, portions };
+  return { ...state, foods: foodId ? state.foods.map(item => item.id === foodId ? food : item) : [...state.foods, food] };
+}
+
+export function removeDictionaryFood(state, id) {
+  if (!state.foods.some(food => food.id === id)) throw new Error('这种食物已不存在，请刷新后重试。');
+  return { ...state, foods: state.foods.filter(food => food.id !== id) };
 }
