@@ -65,3 +65,12 @@ test('个人修改碰巧与后续预置相同时，仍不会被再下一次更�
   second.write(s => s);
   assert.equal(createRepository(storage, { foods: [preset('C')], version: 'v3' }).read().foods[0].name, 'B');
 });
+
+test('未做修改直接保存不会阻止未来预置更新', async () => {
+  const { saveDictionaryFood } = await import('../dist/domain.mjs');
+  const storage = memoryStorage();
+  const preset = name => ({ id: 'p', name, note: '', portions: [{ name: '份', kcal: '10' }] });
+  const first = createRepository(storage, { foods: [preset('A')], version: 'v1' });
+  first.write(s => saveDictionaryFood(s, preset('A'), { foodId: 'p' }));
+  assert.equal(createRepository(storage, { foods: [preset('B')], version: 'v2' }).read().foods[0].name, 'B');
+});

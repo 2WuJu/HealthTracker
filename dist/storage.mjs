@@ -64,7 +64,8 @@ function reconcilePresets(state, catalog) {
   const newById = new Map(catalog.foods.map(food => [food.id, food]));
   const foods = state.foods.flatMap(food => {
     const previous = oldById.get(food.id);
-    if (!previous || overridden.has(food.id) || JSON.stringify(food) !== JSON.stringify(previous)) return [food];
+    if (!previous || overridden.has(food.id)) return [food];
+    if (JSON.stringify(food) !== JSON.stringify(previous)) { overridden.add(food.id); return [food]; }
     return newById.has(food.id) ? [clone(newById.get(food.id))] : [];
   });
   for (const food of catalog.foods) {
