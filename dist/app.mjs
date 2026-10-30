@@ -1,6 +1,6 @@
 import {
   ACTIVITY_LABELS, ENERGY_TABLE, MEALS, formatEnergy, isCalendarDate, localDate,
-  lookupReference, recordedDates, referenceForDate, removeFood, saveFood,
+  lookupReference, multiplyEnergy, recordedDates, referenceForDate, removeFood, saveFood,
   saveProfile, shiftDate, summarizeDay, saveDictionaryFood, removeDictionaryFood,
 } from './domain.mjs';
 import { createRepository, STORAGE_KEY } from './storage.mjs';
@@ -80,7 +80,7 @@ function renderMeals(summary) {
   $('meal-list').innerHTML = MEALS.map(meal => {
     const data = summary.meals[meal.id];
     const foods = data.entries.length
-      ? `<ul class="food-list">${data.entries.map(food => `<li class="food-row"><span class="food-name">${escapeHTML(food.name)}</span><span class="food-energy">${formatEnergy(food.kcal)}<small>千卡</small></span><div class="food-actions"><button class="icon-button" type="button" data-action="edit" data-id="${escapeHTML(food.id)}" data-write aria-label="修改${escapeHTML(food.name)}">${icon('edit')}</button><button class="icon-button" type="button" data-action="delete" data-id="${escapeHTML(food.id)}" data-write aria-label="删除${escapeHTML(food.name)}">${icon('trash')}</button></div></li>`).join('')}</ul>`
+      ? `<ul class="food-list">${data.entries.map(food => `<li class="food-row"><span class="food-name">${escapeHTML(food.name)}${food.portion ? ` · ${escapeHTML(food.quantity)} × ${escapeHTML(food.portion)}` : ''}</span><span class="food-energy">${formatEnergy(food.kcal)}<small>千卡</small></span><div class="food-actions"><button class="icon-button" type="button" data-action="edit" data-id="${escapeHTML(food.id)}" data-write aria-label="修改${escapeHTML(food.name)}">${icon('edit')}</button><button class="icon-button" type="button" data-action="delete" data-id="${escapeHTML(food.id)}" data-write aria-label="删除${escapeHTML(food.name)}">${icon('trash')}</button></div></li>`).join('')}</ul>`
       : `<div class="meal-empty"><button type="button" data-action="add" data-meal="${meal.id}" data-write>${icon('plus')}这餐还没有记录，添加食物</button></div>`;
     return `<article class="meal-card" aria-labelledby="meal-${meal.id}"><header class="meal-header"><span class="meal-icon ${meal.tone}">${icon(meal.icon)}</span><div class="meal-title"><h3 id="meal-${meal.id}">${meal.name}</h3><p>${data.entries.length ? `${data.entries.length} 项食物` : '还没有记录'}</p></div><div class="meal-total">${formatEnergy(data.total)}<small>千卡</small></div><button class="icon-button add-food" type="button" data-action="add" data-meal="${meal.id}" data-write aria-label="为${meal.name}添加食物">${icon('plus')}</button></header>${foods}</article>`;
   }).join('');
@@ -168,6 +168,11 @@ function openFood(meal = 'breakfast', entryId = null) {
   if (entryId && !entry) return;
   editingId = entryId;
   $('food-form').reset();
+  $('food-source-fields').hidden = Boolean(entry);
+  $('food-source').value = 'manual';
+  $('food-search').value = '';
+  $('food-quantity').value = '1';
+  updateFoodSource();
   $('food-date').value = entry?.date ?? selectedDate;
   $('food-date').max = localDate();
   $('food-meal').value = entry?.meal ?? meal;
@@ -179,6 +184,52 @@ function openFood(meal = 'breakfast', entryId = null) {
   $('food-dialog').showModal();
   $('food-name').focus();
 }
+
+
+function updateFoodSource() {
+  const dictionary = $('food-source').value === 'dictionary' && !editingId;
+  $('food-dictionary-fields').hidden = !dictionary;
+  $('food-name-row').hidden = dictionary;
+  $('food-choice').disabled = !dictionary;
+  $('food-portion').disabled = !dictionary;
+  $('food-quantity').disabled = !dictionary;
+  if (dictionary) updateFoodChoices();
+}
+
+function updateFoodChoices() {
+  const query = $('food-search').value.trim().toLocaleLowerCase();
+  const foods = state.foods.filter(food => `${food.name} ${food.note}`.toLocaleLowerCase().includes(query));
+  const previous = $('food-choice').value;
+  $('food-choice').innerHTML = '<option value="">请选择食物</option>' + foods.map(food => `<option value="${escapeHTML(food.id)}">${escapeHTML(food.name)}${food.note ? ` · ${escapeHTML(food.note)}` : ''}</option>`).join('');
+  if (foods.some(food => food.id === previous)) $('food-choice').value = previous;
+  updateFoodPortions();
+}
+
+function updateFoodPortions() {
+  const food = state.foods.find(item => item.id === $('food-choice').value);
+  $('food-portion').innerHTML = food ? food.portions.map((portion, index) => `<option value="${index}">${escapeHTML(portion.name)} · ${formatEnergy(portion.kcal)} 千卡</option>`).join('') : '<option value="">请选择份量</option>';
+  updateFoodEstimate();
+}
+
+function updateFoodEstimate() {
+  const food = state.foods.find(item => item.id === $('food-choice').value);
+  const portion = food?.portions[Number($('food-portion').value)];
+  try {
+    if (!portion || !$('food-quantity').value.trim()) throw new Error();
+    const estimate = multiplyEnergy(portion.kcal, $('food-quantity').value);
+    $('food-estimate').textContent = `估算热量：${formatEnergy(estimate)} 千卡；可在下方调整本次热量。`;
+    $('food-kcal').value = estimate;
+  } catch {
+    $('food-estimate').textContent = '选择食物和份量并输入数量后显示估算热量。';
+    $('food-kcal').value = '';
+  }
+}
+
+$('food-source').addEventListener('change', updateFoodSource);
+$('food-search').addEventListener('input', updateFoodChoices);
+$('food-choice').addEventListener('change', updateFoodPortions);
+$('food-portion').addEventListener('change', updateFoodEstimate);
+$('food-quantity').addEventListener('input', updateFoodEstimate);
 
 
 function renderDictionary() {
@@ -226,6 +277,7 @@ $('food-form').addEventListener('submit', async event => {
   event.preventDefault();
   const fields = Object.fromEntries(new FormData(event.currentTarget));
   try {
+    if ($('food-source').value === 'dictionary' && !editingId && !fields.dictionaryFoodId) throw new Error('请选择食物。');
     state = await writeState(current => saveFood(current, fields, { today: localDate(), entryId: editingId }));
     const edited = editingId !== null;
     $('food-dialog').close();

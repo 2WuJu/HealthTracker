@@ -37,9 +37,9 @@ export function shiftDate(value, days) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 }
 
-export function normalizeEnergy(input) {
+export function normalizeEnergy(input, maxLength = 30) {
   const text = String(input ?? '').trim();
-  if (!text || text.length > 30 || !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)) {
+  if (!text || text.length > maxLength || !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)) {
     throw new Error('请填写本次摄入的千卡数，可为 0 或小数，不能是负数。');
   }
   const [integer = '', fraction = ''] = text.split('.');
@@ -68,6 +68,12 @@ export function sumEnergy(values) {
   const scale = parts.reduce((max, item) => Math.max(max, item.scale), 0);
   const total = parts.reduce((sum, item) => sum + item.digits * 10n ** BigInt(scale - item.scale), 0n);
   return fromScaled(total, scale);
+}
+
+export function multiplyEnergy(left, right) {
+  const a = decimalParts(normalizeEnergy(left));
+  const b = decimalParts(normalizeEnergy(right));
+  return fromScaled(a.digits * b.digits, a.scale + b.scale);
 }
 
 export function subtractEnergy(left, right) {
@@ -124,11 +130,20 @@ export function referenceForDate(state, date) {
 export function saveFood(state, input, { today = localDate(), entryId = null, id = globalThis.crypto.randomUUID() } = {}) {
   if (!isCalendarDate(input.date) || input.date > today) throw new Error('饮食日期只能选择今天或过去的有效日期。');
   if (!MEALS.some(meal => meal.id === input.meal)) throw new Error('请选择餐次。');
-  const name = String(input.name ?? '').trim();
+  const selected = input.dictionaryFoodId ? state.foods.find(food => food.id === input.dictionaryFoodId) : null;
+  if (input.dictionaryFoodId && !selected) throw new Error('这种食物已不存在，请重新选择。');
+  const portionIndex = String(input.portionIndex ?? '');
+  const portion = selected && /^\d+$/.test(portionIndex) ? selected.portions[Number(portionIndex)] : null;
+  if (selected && !portion) throw new Error('请选择份量。');
+  const quantity = selected ? normalizeEnergy(input.quantity) : null;
+  if (selected && quantity === '0') throw new Error('数量必须大于零。');
+  const name = String(selected?.name ?? input.name ?? '').trim();
   if (!name) throw new Error('请填写食物名称，也可以在名称中写明份量。');
   if (name.length > 200) throw new Error('食物名称请控制在 200 字以内。');
-  const kcal = normalizeEnergy(input.kcal);
-  const record = { id: entryId ?? id, date: input.date, meal: input.meal, name, kcal };
+  const kcal = normalizeEnergy(input.kcal, 61);
+  const previous = entryId ? state.entries.find(item => item.id === entryId) : null;
+  const snapshot = selected ? { portion: portion.name, quantity } : previous?.portion ? { portion: previous.portion, quantity: previous.quantity } : {};
+  const record = { id: entryId ?? id, date: input.date, meal: input.meal, name, ...snapshot, kcal };
   if (entryId && !state.entries.some(item => item.id === entryId)) throw new Error('这条记录已不存在，请刷新后重试。');
   return { ...state, entries: entryId ? state.entries.map(item => item.id === entryId ? record : item) : [...state.entries, record] };
 }

@@ -30,7 +30,11 @@ export function validateState(state) {
     ids.add(entry.id);
     assert(isCalendarDate(entry.date) && MEALS.some(meal => meal.id === entry.meal));
     assert(typeof entry.name === 'string' && entry.name.trim().length > 0 && entry.name.length <= 200);
-    assert(typeof entry.kcal === 'string' && normalizeEnergy(entry.kcal) === entry.kcal);
+    assert(typeof entry.kcal === 'string' && normalizeEnergy(entry.kcal, 61) === entry.kcal);
+    if (entry.portion !== undefined || entry.quantity !== undefined) {
+      assert(typeof entry.portion === 'string' && entry.portion.trim().length > 0 && entry.portion.length <= 100);
+      assert(typeof entry.quantity === 'string' && normalizeEnergy(entry.quantity) === entry.quantity && entry.quantity !== '0');
+    }
   }
   const dates = new Set();
   for (const reference of state.references) {

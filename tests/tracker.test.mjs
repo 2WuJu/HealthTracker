@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import {
   emptyState, formatEnergy, isCalendarDate, localDate, lookupReference,
-  normalizeEnergy, recordedDates, referenceForDate, removeFood,
+  multiplyEnergy, normalizeEnergy, recordedDates, referenceForDate, removeFood,
   saveFood, saveProfile, shiftDate, subtractEnergy, sumEnergy, summarizeDay, saveDictionaryFood, removeDictionaryFood,
 } from '../dist/domain.mjs';
 import { createRepository, STORAGE_KEY } from '../dist/storage.mjs';
@@ -298,4 +298,36 @@ test('损坏的字典数据无法被覆盖', () => {
   assert.ok(repository.error);
   assert.throws(() => repository.write(state => state));
   assert.equal(storage.getItem(STORAGE_KEY), raw);
+});
+
+test('字典食物按小数数量保存独立快照，修改字典和记录后汇总仍可信', () => {
+  const storage = memoryStorage();
+  const repository = createRepository(storage);
+  repository.write(state => saveDictionaryFood(state, { name: '米饭', note: '白米', portions: [{ name: '碗', kcal: '0.1' }] }, { id: 'rice' }));
+  repository.write(state => saveFood(state, { date: today, meal: 'lunch', dictionaryFoodId: 'rice', portionIndex: '0', quantity: '0.2', kcal: '0.02' }, { today, id: 'meal' }));
+  repository.write(state => saveDictionaryFood(state, { name: '新米饭', note: '', portions: [{ name: '大碗', kcal: '300' }] }, { foodId: 'rice' }));
+  repository.write(state => removeDictionaryFood(state, 'rice'));
+  let state = createRepository(storage).read();
+  assert.deepEqual(state.entries[0], { id: 'meal', date: today, meal: 'lunch', name: '米饭', portion: '碗', quantity: '0.2', kcal: '0.02' });
+  assert.equal(summarizeDay(state, today).meals.lunch.total, '0.02');
+  state = saveFood(state, { date: yesterday, meal: 'dinner', name: '米饭', kcal: '0.03' }, { today, entryId: 'meal' });
+  assert.equal(state.entries[0].portion, '碗');
+  assert.equal(state.entries[0].quantity, '0.2');
+  assert.equal(summarizeDay(state, yesterday).total, '0.03');
+});
+
+
+test('字典计算精确，允许调整本次热量并拒绝无效选择和数量', () => {
+  assert.equal(multiplyEnergy('0.1', '0.2'), '0.02');
+  assert.equal(multiplyEnergy('12.5', '1.2'), '15');
+  const large = multiplyEnergy('9999999999999999', '9999999999999999');
+  assert.equal(food(emptyState(), { kcal: large }, 'large').entries[0].kcal, large);
+  let state = saveDictionaryFood(emptyState(), { name: '鸡蛋', note: '熟', portions: [{ name: '个', kcal: '80' }] }, { id: 'egg' });
+  const input = { date: today, meal: 'breakfast', dictionaryFoodId: 'egg', portionIndex: '0', quantity: '1.5', kcal: '125' };
+  for (const invalid of [{ quantity: '0' }, { quantity: '-1' }, { portionIndex: '1' }, { dictionaryFoodId: 'missing' }]) {
+    assert.throws(() => saveFood(state, { ...input, ...invalid }, { today, id: 'invalid' }));
+  }
+  state = saveFood(state, input, { today, id: 'egg-entry' });
+  assert.equal(summarizeDay(state, today).total, '125');
+  assert.equal(state.foods[0].portions[0].kcal, '80');
 });
