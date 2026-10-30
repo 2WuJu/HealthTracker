@@ -74,3 +74,36 @@ test('未做修改直接保存不会阻止未来预置更新', async () => {
   first.write(s => saveDictionaryFood(s, preset('A'), { foodId: 'p' }));
   assert.equal(createRepository(storage, { foods: [preset('B')], version: 'v2' }).read().foods[0].name, 'B');
 });
+
+test('现有用户获得常见菜肴，原有修改和删除保持不变', async () => {
+  const { PRESET_FOODS } = await import('../dist/presets.mjs');
+  const { saveDictionaryFood, removeDictionaryFood, saveFood } = await import('../dist/domain.mjs');
+  const storage = memoryStorage();
+  const oldFoods = PRESET_FOODS.filter(food => food.id.startsWith('usda-sr-'));
+  const old = createRepository(storage, { foods: oldFoods, version: '旧版本' });
+  const cabbage = old.read().foods.find(food => food.id === 'usda-sr-169979');
+  old.write(s => saveDictionaryFood(s, { ...cabbage, name: '自家白菜' }, { foodId: cabbage.id }));
+  old.write(s => removeDictionaryFood(s, 'usda-sr-170390'));
+  const upgraded = createRepository(storage);
+  const state = upgraded.read();
+  assert.equal(state.foods.find(food => food.id === cabbage.id).name, '自家白菜');
+  assert.equal(state.foods.some(food => food.id === 'usda-sr-170390'), false);
+  const dish = state.foods.find(food => food.name === '宫保鸡丁');
+  assert.equal(dish.kcalPer100g, '129');
+  assert.equal(dish.source.version, 'FNDDS 2021-2023');
+  assert.match(dish.source.url, /2706796/);
+  const meal = saveFood(state, { date: '2026-10-23', meal: 'lunch', dictionaryFoodId: dish.id, portionIndex: 'grams', quantity: '150' }, { today: '2026-10-23', id: 'meal' });
+  assert.equal(meal.entries[0].kcal, '193.5');
+});
+
+test('中文来源菜肴可按克记录且显示正确来源', async () => {
+  const { saveFood } = await import('../dist/domain.mjs');
+  const state = createRepository(memoryStorage()).read();
+  const food = state.foods.find(item => item.id === 'tfda-R5101101');
+  assert.equal(food.name, '卤猪脚（去骨）');
+  assert.equal(food.kcalPer100g, '237');
+  assert.match(food.source.name, /食品药物管理署/);
+  assert.match(food.source.url, /data\.gov\.tw/);
+  const next = saveFood(state, { date: '2026-10-23', meal: 'lunch', dictionaryFoodId: food.id, portionIndex: 'grams', quantity: '50' }, { today: '2026-10-23', id: 'dish' });
+  assert.equal(next.entries[0].kcal, '118.5');
+});

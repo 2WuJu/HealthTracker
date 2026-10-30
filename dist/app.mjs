@@ -236,9 +236,13 @@ $('food-quantity').addEventListener('input', updateFoodEstimate);
 
 
 function renderDictionary() {
-  $('dictionary-list').innerHTML = state.foods.length ? state.foods.map(food => `<article class="dictionary-item"><div><strong>${escapeHTML(food.name)}</strong>${food.note ? `<p>${escapeHTML(food.note)}</p>` : ''}<p>${food.kcalPer100g !== undefined ? `每 100 克 ${formatEnergy(food.kcalPer100g)} 千卡 / ` : ''}${food.portions.map(portion => `${escapeHTML(portion.name)} · ${formatEnergy(portion.kcal)} 千卡`).join(' / ')}</p>${food.source ? `<p>原预置来源（修改后数值可能不同）：<a href="${escapeHTML(food.source.url)}" target="_blank" rel="noopener noreferrer">USDA FoodData Central · ${escapeHTML(food.source.version)}</a></p>` : ''}</div><div class="food-actions"><button class="icon-button" type="button" data-action="dictionary-edit" data-id="${escapeHTML(food.id)}" data-write aria-label="修改${escapeHTML(food.name)}">${icon('edit')}</button><button class="icon-button" type="button" data-action="dictionary-delete" data-id="${escapeHTML(food.id)}" data-write aria-label="删除${escapeHTML(food.name)}">${icon('trash')}</button></div></article>`).join('') : '<p class="history-empty">字典还是空的，添加常吃的食物吧。</p>';
+  const query = $('dictionary-search').value.trim().toLocaleLowerCase();
+  const foods = state.foods.filter(food => `${food.name} ${food.note}`.toLocaleLowerCase().includes(query));
+  $('dictionary-list').innerHTML = foods.length ? foods.map(food => `<article class="dictionary-item"><div><strong>${escapeHTML(food.name)}</strong>${food.note ? `<p>${escapeHTML(food.note)}</p>` : ''}<p>${food.kcalPer100g !== undefined ? `每 100 克 ${formatEnergy(food.kcalPer100g)} 千卡 / ` : ''}${food.portions.map(portion => `${escapeHTML(portion.name)} · ${formatEnergy(portion.kcal)} 千卡`).join(' / ')}</p>${food.source ? `<p>原预置来源（修改后数值可能不同）：<a href="${escapeHTML(food.source.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(food.source.name ?? 'USDA FoodData Central')} · ${escapeHTML(food.source.version)}</a></p>` : ''}</div><div class="food-actions"><button class="icon-button" type="button" data-action="dictionary-edit" data-id="${escapeHTML(food.id)}" data-write aria-label="修改${escapeHTML(food.name)}">${icon('edit')}</button><button class="icon-button" type="button" data-action="dictionary-delete" data-id="${escapeHTML(food.id)}" data-write aria-label="删除${escapeHTML(food.name)}">${icon('trash')}</button></div></article>`).join('') : '<p class="history-empty">没有找到食物，可尝试其他关键词或添加食物。</p>';
   document.querySelectorAll('#dictionary-list [data-write]').forEach(button => { button.disabled = Boolean(repository.error); });
 }
+
+$('dictionary-search').addEventListener('input', renderDictionary);
 
 function addPortion(portion = { name: '', kcal: '' }) {
   const row = document.createElement('div');
