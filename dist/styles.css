@@ -16,6 +16,7 @@ dialog{border:1px solid var(--line);border-radius:16px;padding:0;width:min(480px
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
 
 .dictionary-content{padding:20px 24px;max-height:65vh;overflow-y:auto}.dictionary-item{display:flex;justify-content:space-between;gap:12px;padding:16px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.dictionary-item p{color:#71816f;font-size:12px;margin:6px 0}.portion-row{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:10px;margin-bottom:14px}.portion-row label{font-size:12px}.portion-row input{display:block;width:100%;margin-top:7px;padding:10px;border:1px solid var(--line);border-radius:6px}.portion-row button{padding:10px 0}@media(max-width:520px){.navigation{flex-wrap:wrap}.nav-item{padding:6px}.portion-row{grid-template-columns:1fr 1fr auto}}
+.reference-link{border:0;padding:0;background:transparent;color:var(--green);text-decoration:underline;text-underline-offset:2px}
 
 /* Profile has its own workspace, with the reference material alongside the form. */
 .content-grid{grid-template-columns:minmax(0,1fr)}

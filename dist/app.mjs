@@ -103,14 +103,16 @@ function renderDay() {
   $('intake-note').textContent = summary.entries.length ? `已记录 ${summary.entries.length} 项食物` : '还没有食物记录';
   $('reference-value').textContent = formatEnergy(summary.reference?.kcal);
   $('reference-source').textContent = summary.reference?.sourceVersion ?? '中国 DRIs 2023 · 人群参考';
+  const showProfileLink = !summary.reference && !state.references.length && selectedDate === today;
+  $('reference-profile').hidden = !showProfileLink;
   $('reference-note').textContent = !summary.reference
-    ? (state.references.length ? '这个日期尚无参考值' : '填写个人信息后匹配')
+    ? (showProfileLink ? '' : '这个日期尚无参考值')
     : summary.reference.kcal === null ? '该组合暂无参考值'
     : `${summary.reference.ageGroup} · ${summary.reference.profile.sex === 'male' ? '男性' : '女性'} · ${ACTIVITY_LABELS[summary.reference.profile.activity]}`;
   $('difference-value').textContent = summary.difference === null ? '—' : `${summary.difference.startsWith('-') ? '−' : summary.difference === '0' ? '' : '+'}${formatEnergy(summary.difference.replace(/^-/, ''))}`;
-  $('difference-note').textContent = summary.total === null ? '记录后显示数值比较'
-    : !summary.reference ? '这个日期尚无参考值，仅汇总摄入量'
+  $('difference-note').textContent = !summary.reference ? '这个日期尚无参考值，仅汇总摄入量'
     : summary.reference.kcal === null ? '参考表未提供此组合，暂不比较'
+    : summary.total === null ? '记录后显示数值比较'
     : summary.difference === '0' ? '已记录量与参考值相同'
     : summary.difference.startsWith('-') ? '已记录量低于参考值' : '已记录量高于参考值';
   const progress = $('intake-progress');
