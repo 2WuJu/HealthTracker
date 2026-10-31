@@ -22,6 +22,8 @@ let lastToday = selectedDate;
 let followsToday = true;
 let editingId = null;
 let profileDirty = false;
+let currentPage = 'journal';
+let pendingDestination = null;
 let editingDictionaryId = null;
 let toastTimer;
 
@@ -65,15 +67,15 @@ function updateProfilePreview() {
 
 function renderProfile() {
   const current = referenceForDate(state, localDate());
-  if (!profileDirty && current) {
-    $('profile-age').value = current.profile.age;
-    $('profile-sex').value = current.profile.sex;
-    $('profile-activity').value = current.profile.activity;
+  if (!profileDirty) {
+    $('profile-age').value = current?.profile.age ?? '';
+    $('profile-sex').value = current?.profile.sex ?? '';
+    $('profile-activity').value = current?.profile.activity ?? '';
   }
   updateProfilePreview();
   $('profile-effective-note').textContent = current
-    ? `当前信息自 ${current.effectiveDate} 生效；修改后从今天起更新。`
-    : '保存后从今天起生效；年龄需手动更新。';
+    ? `当前信息自 ${current.effectiveDate} 生效；修改后从今天起更新；年龄需手动更新，无需填写身高体重。`
+    : '保存后从今天起生效；年龄需手动更新，无需填写身高体重。';
 }
 
 function renderMeals(summary) {
@@ -297,8 +299,7 @@ $('food-form').addEventListener('submit', async event => {
   }
 });
 
-$('profile-form').addEventListener('submit', async event => {
-  event.preventDefault();
+async function saveProfileDraft() {
   try {
     state = await writeState(current => saveProfile(current, profileInput(), localDate()));
     profileDirty = false;
@@ -306,30 +307,67 @@ $('profile-form').addEventListener('submit', async event => {
     setError('page-error');
     render();
     toast('个人信息已保存，从今天起生效');
+    return true;
   } catch (error) {
     setError('profile-error', error.message);
+    return false;
   }
+}
+
+$('profile-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  await saveProfileDraft();
 });
 
 function profileChanged() {
-  profileDirty = true;
+  const saved = referenceForDate(state, localDate())?.profile;
+  const input = profileInput();
+  profileDirty = input.age !== String(saved?.age ?? '') || input.sex !== (saved?.sex ?? '') || input.activity !== (saved?.activity ?? '');
   setError('profile-error');
   updateProfilePreview();
 }
 $('profile-form').addEventListener('input', profileChanged);
 $('profile-form').addEventListener('change', profileChanged);
+
+function navigate(destination) {
+  if (currentPage === 'profile' && profileDirty && destination !== 'profile') {
+    pendingDestination = destination;
+    $('unsaved-dialog').showModal();
+    return;
+  }
+  currentPage = destination === 'profile' ? 'profile' : 'journal';
+  $('journal-page').hidden = currentPage !== 'journal';
+  $('profile-page').hidden = currentPage !== 'profile';
+  document.querySelectorAll('.nav-item').forEach(item => {
+    const active = item.dataset.action === currentPage;
+    item.classList.toggle('active', active);
+    if (active) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
+  });
+  if (currentPage === 'profile') $('profile-page-title').focus();
+  else $('journal').focus();
+  if (destination === 'dictionary') { renderDictionary(); setError('dictionary-error', repository.error ?? ''); $('dictionary-dialog').showModal(); }
+  if (destination === 'history') { renderHistory(); $('history-dialog').showModal(); }
+}
+
+window.addEventListener('beforeunload', event => {
+  if (profileDirty) { event.preventDefault(); event.returnValue = ''; }
+});
+
 $('selected-date').addEventListener('change', event => selectDate(event.target.value));
 $('previous-day').addEventListener('click', () => selectDate(shiftDate(selectedDate, -1)));
 $('next-day').addEventListener('click', () => selectDate(shiftDate(selectedDate, 1)));
 $('back-today').addEventListener('click', () => selectDate(localDate()));
 
 document.addEventListener('click', async event => {
+  const pageLink = event.target.closest('[data-page-link]');
+  if (pageLink) { event.preventDefault(); navigate(pageLink.dataset.pageLink); return; }
   const close = event.target.closest('[data-close]');
   if (close) { $(close.dataset.close).close(); return; }
   const button = event.target.closest('button[data-action]');
   if (!button || button.disabled) return;
   switch (button.dataset.action) {
-    case 'dictionary': renderDictionary(); setError('dictionary-error', repository.error ?? ''); $('dictionary-dialog').showModal(); break;
+    case 'dictionary': navigate('dictionary'); break;
     case 'dictionary-add': openDictionaryEditor(); break;
     case 'dictionary-edit': openDictionaryEditor(button.dataset.id); break;
     case 'portion-add': addPortion(); break;
@@ -354,9 +392,29 @@ document.addEventListener('click', async event => {
       } catch (error) { setError('page-error', error.message); }
       break;
     }
-    case 'history': renderHistory(); $('history-dialog').showModal(); break;
-    case 'profile': $('profile-card').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('profile-age').focus({ preventScroll: true }); break;
-    case 'journal': $('journal').scrollIntoView({ behavior: 'smooth', block: 'start' }); break;
+    case 'history': navigate('history'); break;
+    case 'profile': navigate('profile'); break;
+    case 'journal': navigate('journal'); break;
+    case 'stay': $('unsaved-dialog').close(); pendingDestination = null; break;
+    case 'discard-profile': {
+      const destination = pendingDestination;
+      pendingDestination = null;
+      profileDirty = false;
+      setError('profile-error');
+      renderProfile();
+      $('unsaved-dialog').close();
+      navigate(destination);
+      break;
+    }
+    case 'save-and-leave': {
+      button.disabled = true;
+      const saved = await saveProfileDraft();
+      button.disabled = false;
+      $('unsaved-dialog').close();
+      if (saved) navigate(pendingDestination);
+      pendingDestination = null;
+      break;
+    }
     case 'select-date':
       selectDate(button.dataset.date);
       if ($('history-dialog').open) $('history-dialog').close();
@@ -384,3 +442,4 @@ window.addEventListener('storage', event => {
 $('reference-table-body').innerHTML = ENERGY_TABLE.map(row => `<tr><th scope="row">${row.label}</th><td>${row.male.map(value => value ?? '—').join(' / ')}</td><td>${row.female.map(value => value ?? '—').join(' / ')}</td></tr>`).join('');
 setError('page-error', repository.error ?? '');
 render();
+navigate('journal');

@@ -31,9 +31,9 @@
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
   </svg>
 
-  <a class="skip-link" href="#journal">跳到饮食记录</a>
+  <a class="skip-link" href="#journal" data-page-link="journal">跳到饮食记录</a>
   <aside class="sidebar" aria-label="主导航">
-    <a href="./" class="brand" aria-label="知食首页"><img src="./icon.svg" width="42" height="42" alt=""><span><strong>知食</strong><small>个人饮食记录</small></span></a>
+    <a href="#journal" data-page-link="journal" class="brand" aria-label="知食首页"><img src="./icon.svg" width="42" height="42" alt=""><span><strong>知食</strong><small>个人饮食记录</small></span></a>
     <div class="sidebar-label">我的日常</div>
     <nav class="navigation">
       <button class="nav-item active" type="button" data-action="journal"><svg class="icon"><use href="#i-book"/></svg><span>饮食日记</span></button>
@@ -45,7 +45,7 @@
   </aside>
 
   <main class="workspace" id="journal" tabindex="-1">
-    <div class="page-topline"><span>我的饮食日记 <span class="breadcrumb">/ 每日记录</span></span><span class="local-badge"><span class="status-dot"></span>本机记录</span></div>
+    <div id="journal-page"><div class="page-topline"><span>我的饮食日记 <span class="breadcrumb">/ 每日记录</span></span><span class="local-badge"><span class="status-dot"></span>本机记录</span></div>
     <header class="page-header"><div><p class="eyebrow">A LITTLE EVERY DAY</p><h1>记录每一餐，了解每一天。</h1><p class="subtitle">从今天吃了什么开始，慢慢积累自己的饮食日记。</p></div><button class="button primary" type="button" data-action="add" data-write><svg class="icon"><use href="#i-plus"/></svg>记一笔</button></header>
     <noscript><p class="error-banner">此工具需要启用 JavaScript 才能记录和汇总饮食。</p></noscript>
     <p id="page-error" class="error-banner" role="alert" hidden></p>
@@ -65,7 +65,11 @@
         <div id="meal-list" class="meal-list"></div>
         <section class="week-section" aria-label="日期速览"><div class="section-heading"><h2 id="week-title">近 7 天</h2><button class="text-button" type="button" data-action="history">全部记录 <svg class="icon"><use href="#i-right"/></svg></button></div><div class="week-strip" id="week-strip"></div></section>
       </div>
-      <aside class="context-column" aria-label="个人信息与计算依据">
+
+    </div>
+    </div>
+    <section id="profile-page" hidden aria-labelledby="profile-page-title"><div class="page-topline"><span>我的日常 / 个人信息</span><span class="local-badge"><span class="status-dot"></span>本机记录</span></div><header class="page-header"><div><p class="eyebrow">YOUR PROFILE</p><h1 id="profile-page-title" tabindex="-1">个人信息</h1><p class="subtitle">填写资料，查看每日能量人群参考值。</p></div></header>
+      <div class="profile-layout">
         <section class="profile-card" id="profile-card"><div class="card-heading"><div class="profile-icon"><svg class="icon"><use href="#i-user"/></svg></div><div><h2>我的个人信息</h2><p>为日常记录提供一个参考</p></div><span id="profile-status" class="small-tag">未设置</span></div>
           <form id="profile-form" novalidate>
             <div class="form-row"><label for="profile-age">年龄 <span>周岁</span></label><input id="profile-age" name="age" type="number" min="18" step="1" placeholder="填写年龄" required autocomplete="off" inputmode="numeric"></div>
@@ -74,16 +78,17 @@
             <div class="reference-preview"><span>匹配参考值 <small id="preview-group"></small></span><strong id="profile-preview">— <small>千卡 / 天</small></strong></div>
             <p id="profile-error" class="form-error" role="alert" hidden></p>
             <button class="button primary full-width" id="profile-save" type="submit" data-write>保存个人信息</button>
-            <p class="profile-effective-note" id="profile-effective-note">保存后从今天起生效；年龄需手动更新。</p>
+            <p class="profile-effective-note" id="profile-effective-note">保存后从今天起生效；年龄需手动更新，无需填写身高体重。</p>
           </form>
         </section>
         <details class="basis-card"><summary><span><svg class="icon"><use href="#i-leaf"/></svg>参考值从哪里来？</span><svg class="icon disclosure-arrow"><use href="#i-right"/></svg></summary><div class="basis-content"><p>依据《中国居民膳食营养素参考摄入量（2023 版）》，按年龄、性别和活动档位匹配<strong>人群参考值</strong>，并非个人精确热量需要量。</p><p>适用于 18 岁及以上一般成年人。孕哺及其他需要专门营养方案的情况不适用普通成人表。</p><p>18–49 岁原表的 MJ 已换算为千卡，按最近 50 千卡表示；不额外乘活动系数。原表没有提供的组合保持为空。</p><div class="reference-table-wrap"><table class="reference-table"><caption>每日能量参考值（千卡）</caption><thead><tr><th scope="col">年龄</th><th scope="col">男：低 / 中 / 高</th><th scope="col">女：低 / 中 / 高</th></tr></thead><tbody id="reference-table-body"></tbody></table></div><div class="source-links"><a href="https://www.cnsoc.org/drpostand/" target="_blank" rel="noopener noreferrer">中国营养学会 · 原始参考表 ↗</a><a href="https://www.chp.gov.hk/files/pdf/exn_nutp_058b.pdf" target="_blank" rel="noopener noreferrer">香港卫生署 · 50 岁以上转引表 ↗</a></div><p class="basis-note">修改个人信息只更新当天及以后的参考值，过去的比较依据保留。</p></div></details>
         <div class="local-note"><svg class="icon"><use href="#i-check"/></svg><p>留在本机，随时继续<small>刷新或重新打开同一地址，记录依然保留。清除浏览器数据会同时清除记录。</small></p></div>
-      </aside>
-    </div>
+      </div>
+    </section>
     <footer class="page-footer"><span>知食 · 认真记录，慢慢了解</span><span>每一笔，都是日常的一部分。</span></footer>
   </main>
 
+  <dialog id="unsaved-dialog" aria-labelledby="unsaved-title"><div class="dialog-header"><h2 id="unsaved-title">个人信息尚未保存</h2></div><div class="dialog-fields"><p>保存或放弃修改后继续，亦可留在此页面。</p></div><div class="dialog-actions"><button class="button secondary" type="button" data-action="stay">继续编辑</button><button class="button secondary" type="button" data-action="discard-profile">放弃修改</button><button class="button primary" type="button" data-action="save-and-leave">保存并继续</button></div></dialog>
   <dialog id="food-dialog" aria-labelledby="food-dialog-title"><form id="food-form" novalidate><div class="dialog-header"><div><p class="eyebrow">FOOD JOURNAL</p><h2 id="food-dialog-title">添加一条食物</h2></div><button class="icon-button" type="button" data-close="food-dialog" aria-label="关闭录入窗口"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-fields"><div class="two-fields"><div class="form-row"><label for="food-date">日期</label><input type="date" id="food-date" name="date" min="0001-01-01" required></div><div class="form-row"><label for="food-meal">餐次</label><select id="food-meal" name="meal"><option value="breakfast">早餐</option><option value="lunch">午餐</option><option value="dinner">晚餐</option><option value="snack">加餐</option></select></div></div><div id="food-source-fields"><div class="form-row"><label for="food-source">录入方式</label><select id="food-source"><option value="manual">手动记录</option><option value="dictionary">从食物字典选择</option></select></div><div id="food-dictionary-fields" hidden><div class="form-row"><label for="food-search">搜索食物或备注</label><input id="food-search" type="search" autocomplete="off" placeholder="输入名称或备注"></div><div class="form-row"><label for="food-choice">食物</label><select id="food-choice" name="dictionaryFoodId"></select></div><div class="form-row"><label for="food-portion">份量</label><select id="food-portion" name="portionIndex"></select></div><div class="form-row"><label for="food-quantity">数量</label><input id="food-quantity" name="quantity" inputmode="decimal" maxlength="30" value="1"></div><p id="food-estimate" class="field-help" aria-live="polite"></p></div></div><div class="form-row" id="food-name-row"><label for="food-name">吃了什么 <span>可以写明份量</span></label><input type="text" id="food-name" name="name" maxlength="200" placeholder="例如：米饭一碗" required autocomplete="off"></div><div class="form-row"><label for="food-kcal">本次摄入热量 <span>千卡 kcal</span></label><input type="text" id="food-kcal" name="kcal" inputmode="decimal" maxlength="61" placeholder="例如：230" required autocomplete="off"><p class="field-help">填写本次实际吃下份量的热量，可为 0 或小数。</p></div><p id="food-error" class="form-error" role="alert" hidden></p></div><div class="dialog-actions"><button class="button secondary" type="button" data-close="food-dialog">取消</button><button class="button primary" id="food-submit" type="submit" data-write>保存记录</button></div></form></dialog>
 
   <dialog id="history-dialog" class="history-dialog" aria-labelledby="history-title"><div class="dialog-header"><div><p class="eyebrow">YOUR EVERYDAY</p><h2 id="history-title">过去的每一天</h2><p class="dialog-subtitle">选择日期，继续查看或补记。</p></div><button class="icon-button" type="button" data-close="history-dialog" aria-label="关闭历史记录"><svg class="icon"><use href="#i-close"/></svg></button></div><div id="history-list" class="history-list"></div></dialog>
