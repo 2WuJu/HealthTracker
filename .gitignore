@@ -4,6 +4,9 @@
 /docs/research/
 /docs/adr/
 /docs/github.md
+/docs/*
+!/docs/energy-basis.md
+!/docs/preset-foods.md
 /GLOSSARY.md
 /.agents/
 /.codex/
@@ -22,6 +25,7 @@ coverage/
 !.env.example
 *.pem
 *.key
+/.lan-cert/
 
 # Editor and OS files
 .vscode/
